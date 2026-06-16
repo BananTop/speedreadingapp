@@ -6,6 +6,33 @@ interface Props {
   onLoaded: (book: BookData) => void;
 }
 
+function classifyError(err: unknown): string {
+  if (!(err instanceof Error)) return 'Something went wrong. Please try a different file.';
+
+  const msg = err.message;
+  const name = err.name;
+
+  if (name === 'PDFPasswordError') return msg;
+  if (name === 'PDFNoTextError') return msg;
+
+  // pdfjs error messages
+  if (/password/i.test(msg)) return 'This PDF is password-protected. Remove the password and try again.';
+  if (/invalid pdf/i.test(msg) || /not a pdf/i.test(msg)) return 'This file doesn\'t appear to be a valid PDF.';
+  if (/worker/i.test(msg)) return 'PDF reader failed to start. Try closing other tabs and importing again.';
+
+  // EPUB errors
+  if (/container\.xml/i.test(msg) || /opf/i.test(msg)) return 'This EPUB file appears to be corrupted or in an unsupported format.';
+
+  // Generic network/load errors
+  if (/fetch/i.test(msg) || /network/i.test(msg)) return 'Could not load the file reader. Check your internet connection and try again.';
+
+  // File is too large or caused a memory error
+  if (/out of memory/i.test(msg) || /memory/i.test(msg)) return 'The file is too large to process on this device.';
+
+  // Show the raw message so the user can report it, but keep it concise.
+  return `Failed to read file: ${msg}`;
+}
+
 export function FileImport({ onLoaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -27,18 +54,18 @@ export function FileImport({ onLoaded }: Props) {
           const { parseEPUB } = await import('../utils/epubParser');
           raw = await parseEPUB(file);
         } else {
-          throw new Error('Unsupported file. Please choose a .pdf or .epub file.');
+          throw new Error('Unsupported file type. Please choose a .pdf or .epub file.');
         }
 
         const words = processText(raw);
         if (words.length === 0) {
-          throw new Error('No readable text found. The file may be scanned images or DRM-protected.');
+          throw new Error('No readable text found in this file.');
         }
 
         const title = file.name.replace(/\.(pdf|epub)$/i, '');
         onLoaded({ title, words });
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to read file.');
+        setError(classifyError(e));
       } finally {
         setLoading(false);
       }
@@ -78,7 +105,11 @@ export function FileImport({ onLoaded }: Props) {
         )}
       </button>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <div className="error-block">
+          <p className="error">{error}</p>
+        </div>
+      )}
 
       <input
         ref={inputRef}

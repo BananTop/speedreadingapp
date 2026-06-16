@@ -53,10 +53,14 @@
 .dropzone-title { font-size: 1.15rem; font-weight: 600; }
 .dropzone-sub { color: var(--muted); font-size: 0.9rem; }
 .spinner-text { color: var(--muted); }
+.error-block {
+  max-width: 420px;
+  text-align: center;
+}
 .error {
   color: var(--accent);
-  max-width: 420px;
   font-size: 0.9rem;
+  margin: 0;
 }
 .import-hint {
   color: var(--muted);
